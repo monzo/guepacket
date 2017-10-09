@@ -28,7 +28,7 @@ func (l GUE) LayerType() gopacket.LayerType {
 
 func (l GUE) LayerContents() []byte {
 	b := make([]byte, 4, 4+len(l.Extensions))
-	hlen := uint8(len(l.Extensions))
+	hlen := uint8(len(l.Extensions) / 4)
 	b[0] = l.Version<<6 | hlen
 	if l.C {
 		b[0] |= 0x20
@@ -64,7 +64,7 @@ func (l *GUE) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	l.C = data[0]&0x20 != 0
 	l.Protocol = gplayers.IPProtocol(data[1])
 	l.Flags = (uint16(data[2]) << 8) | uint16(data[3])
-	hlen := data[0] & 0x1f
+	hlen := (data[0] & 0x1f) * 4
 	l.Extensions = data[4 : 4+hlen]
 	l.Data = data[4+hlen:]
 	return nil
