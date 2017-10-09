@@ -38,7 +38,7 @@ func TestDecoding(t *testing.T) {
 	require.Nil(t, p.ErrorLayer())
 	t.Logf("%v", p)
 
-	gue := p.Layer(GUELayerType).(GUE)
+	gue := p.Layer(GUELayerType).(*GUE)
 	require.NotNil(t, gue)
 	assert.Equal(t, uint8(0), gue.Version)
 }

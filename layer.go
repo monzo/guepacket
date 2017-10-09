@@ -33,7 +33,6 @@ func (l GUE) LayerContents() []byte {
 	if l.C {
 		b[0] |= 0x20
 	}
-	b[0] |= hlen
 	b[1] = byte(l.Protocol)
 	b[2] = byte(l.Flags >> 8)
 	b[3] = byte(l.Flags & 0xff)
@@ -75,7 +74,7 @@ func (l GUE) NextLayerType() gopacket.LayerType {
 }
 
 func DecodeGUE(data []byte, p gopacket.PacketBuilder) error {
-	l := GUE{}
+	l := &GUE{}
 	if err := l.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
