@@ -67,6 +67,9 @@ func (l *GUE) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	l.C = data[0]&0x20 != 0
 	l.Protocol = gplayers.IPProtocol(data[1])
 	l.Flags = (uint16(data[2]) << 8) | uint16(data[3])
+	if l.Flags != 0 {
+		return errors.New("don't know how to decode non-zero GUE flags")
+	}
 	hlenWords := data[0] & 0x1f
 	hlenBytes := hlenWords * 4
 	l.Extensions = data[4 : 4+hlenBytes]
