@@ -1,6 +1,8 @@
 package guepacket
 
 import (
+	"errors"
+
 	"github.com/google/gopacket"
 	gplayers "github.com/google/gopacket/layers"
 )
@@ -28,12 +30,13 @@ func (l GUE) LayerType() gopacket.LayerType {
 
 func (l GUE) LayerContents() []byte {
 	b := make([]byte, 4, 4+len(l.Extensions))
-	hlen := uint8(len(l.Extensions))
-	b[0] = l.Version<<6 | hlen
+	hlenBytes := len(l.Extensions)
+	hlenWords := (hlenBytes + (4 - 1)) / 4
+	b[0] = l.Version << 6
 	if l.C {
 		b[0] |= 0x20
 	}
-	b[0] |= hlen
+	b[0] |= uint8(hlenWords & 0x1f)
 	b[1] = byte(l.Protocol)
 	b[2] = byte(l.Flags >> 8)
 	b[3] = byte(l.Flags & 0xff)
@@ -64,9 +67,10 @@ func (l *GUE) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	l.C = data[0]&0x20 != 0
 	l.Protocol = gplayers.IPProtocol(data[1])
 	l.Flags = (uint16(data[2]) << 8) | uint16(data[3])
-	hlen := data[0] & 0x1f
-	l.Extensions = data[4 : 4+hlen]
-	l.Data = data[4+hlen:]
+	hlenWords := data[0] & 0x1f
+	hlenBytes := hlenWords * 4
+	l.Extensions = data[4 : 4+hlenBytes]
+	l.Data = data[4+hlenBytes:]
 	return nil
 }
 
