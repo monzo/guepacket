@@ -16,12 +16,13 @@ var GUELayerType gopacket.LayerType
 // For more information about the meaning of the fields, see
 // https://tools.ietf.org/html/draft-ietf-intarea-gue-04#section-3.1
 type GUE struct {
-	Version    uint8
-	C          bool
-	Protocol   gplayers.IPProtocol
-	Flags      uint16
-	Extensions []byte
-	Data       []byte
+	Version     uint8
+	C           bool
+	Protocol    gplayers.IPProtocol
+	Flags       uint16
+	Extensions  []byte
+	PrivateData []byte
+	Data        []byte
 }
 
 func (l GUE) LayerType() gopacket.LayerType {
@@ -30,7 +31,7 @@ func (l GUE) LayerType() gopacket.LayerType {
 
 func (l GUE) LayerContents() []byte {
 	b := make([]byte, 4, 4+len(l.Extensions))
-	hlenBytes := len(l.Extensions)
+	hlenBytes := len(l.Extensions) + len(l.PrivateData)
 	hlenWords := (hlenBytes + (4 - 1)) / 4
 	b[0] = l.Version << 6
 	if l.C {
@@ -41,6 +42,7 @@ func (l GUE) LayerContents() []byte {
 	b[2] = byte(l.Flags >> 8)
 	b[3] = byte(l.Flags & 0xff)
 	b = append(b, l.Extensions...)
+	b = append(b, l.PrivateData...)
 	return b
 }
 
@@ -72,7 +74,8 @@ func (l *GUE) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	}
 	hlenWords := data[0] & 0x1f
 	hlenBytes := hlenWords * 4
-	l.Extensions = data[4 : 4+hlenBytes]
+	l.Extensions = nil
+	l.PrivateData = data[4+hlenBytes:]
 	l.Data = data[4+hlenBytes:]
 	return nil
 }
