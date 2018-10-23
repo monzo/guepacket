@@ -1,6 +1,8 @@
 package guepacket
 
 import (
+	"errors"
+
 	"github.com/google/gopacket"
 	gplayers "github.com/google/gopacket/layers"
 )
@@ -14,12 +16,13 @@ var GUELayerType gopacket.LayerType
 // For more information about the meaning of the fields, see
 // https://tools.ietf.org/html/draft-ietf-intarea-gue-04#section-3.1
 type GUE struct {
-	Version    uint8
-	C          bool
-	Protocol   gplayers.IPProtocol
-	Flags      uint16
-	Extensions []byte
-	Data       []byte
+	Version     uint8
+	C           bool
+	Protocol    gplayers.IPProtocol
+	Flags       uint16
+	Extensions  []byte
+	PrivateData []byte
+	Data        []byte
 }
 
 func (l GUE) LayerType() gopacket.LayerType {
@@ -28,16 +31,18 @@ func (l GUE) LayerType() gopacket.LayerType {
 
 func (l GUE) LayerContents() []byte {
 	b := make([]byte, 4, 4+len(l.Extensions))
-	hlen := uint8(len(l.Extensions))
-	b[0] = l.Version<<6 | hlen
+	hlenBytes := len(l.Extensions) + len(l.PrivateData)
+	hlenWords := (hlenBytes + (4 - 1)) / 4
+	b[0] = l.Version << 6
 	if l.C {
 		b[0] |= 0x20
 	}
-	b[0] |= hlen
+	b[0] |= uint8(hlenWords & 0x1f)
 	b[1] = byte(l.Protocol)
 	b[2] = byte(l.Flags >> 8)
 	b[3] = byte(l.Flags & 0xff)
 	b = append(b, l.Extensions...)
+	b = append(b, l.PrivateData...)
 	return b
 }
 
@@ -64,9 +69,14 @@ func (l *GUE) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	l.C = data[0]&0x20 != 0
 	l.Protocol = gplayers.IPProtocol(data[1])
 	l.Flags = (uint16(data[2]) << 8) | uint16(data[3])
-	hlen := data[0] & 0x1f
-	l.Extensions = data[4 : 4+hlen]
-	l.Data = data[4+hlen:]
+	if l.Flags != 0 {
+		return errors.New("don't know how to decode non-zero GUE flags")
+	}
+	hlenWords := data[0] & 0x1f
+	hlenBytes := hlenWords * 4
+	l.Extensions = nil
+	l.PrivateData = data[4+hlenBytes:]
+	l.Data = data[4+hlenBytes:]
 	return nil
 }
 
